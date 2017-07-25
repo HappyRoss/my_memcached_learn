@@ -50,7 +50,10 @@ static const entry_details default_entries[] = {
     [LOGGER_ITEM_GET] = {LOGGER_ITEM_GET_ENTRY, 512, LOG_FETCHERS, NULL},
     [LOGGER_ITEM_STORE] = {LOGGER_ITEM_STORE_ENTRY, 512, LOG_MUTATIONS, NULL},
     [LOGGER_CRAWLER_STATUS] = {LOGGER_TEXT_ENTRY, 512, LOG_SYSEVENTS,
-        "type=lru_crawler crawler=%d low_mark=%llu next_reclaims=%llu since_run=%u next_run=%d elapsed=%u examined=%llu reclaimed=%llu"
+        "type=lru_crawler crawler=%d lru=%s low_mark=%llu next_reclaims=%llu since_run=%u next_run=%d elapsed=%u examined=%llu reclaimed=%llu"
+    },
+    [LOGGER_SLAB_MOVE] = {LOGGER_TEXT_ENTRY, 512, LOG_SYSEVENTS,
+        "type=slab_move src=%d dst=%d"
     }
 };
 
@@ -454,8 +457,8 @@ static void logger_thread_sum_stats(struct logger_stats *ls) {
     STATS_UNLOCK();
 }
 
-#define MAX_LOGGER_SLEEP 100000
-#define MIN_LOGGER_SLEEP 0
+#define MAX_LOGGER_SLEEP 1000000
+#define MIN_LOGGER_SLEEP 1000
 
 /* Primary logger thread routine */
 static void *logger_thread(void *arg) {
@@ -466,7 +469,9 @@ static void *logger_thread(void *arg) {
         logger *l;
         struct logger_stats ls;
         memset(&ls, 0, sizeof(struct logger_stats));
-        if (to_sleep)
+
+        /* only sleep if we're *above* the minimum */
+        if (to_sleep > MIN_LOGGER_SLEEP)
             usleep(to_sleep);
 
         /* Call function to iterate each logger. */
@@ -482,10 +487,12 @@ static void *logger_thread(void *arg) {
         /* TODO: abstract into a function and share with lru_crawler */
         if (!found_logs) {
             if (to_sleep < MAX_LOGGER_SLEEP)
-                to_sleep += 50;
+                to_sleep += to_sleep / 8;
+            if (to_sleep > MAX_LOGGER_SLEEP)
+                to_sleep = MAX_LOGGER_SLEEP;
         } else {
             to_sleep /= 2;
-            if (to_sleep < 50)
+            if (to_sleep < MIN_LOGGER_SLEEP)
                 to_sleep = MIN_LOGGER_SLEEP;
         }
         logger_thread_sum_stats(&ls);

@@ -34,11 +34,21 @@ bool slabs_adjust_mem_limit(size_t new_mem_limit);
 /** Return a datum for stats in binary protocol */
 bool get_stats(const char *stat_type, int nkey, ADD_STAT add_stats, void *c);
 
+typedef struct {
+    unsigned int chunks_per_page;
+    long int free_chunks;
+    long int total_pages;
+} slab_stats_automove;
+void fill_slab_stats_automove(slab_stats_automove *am);
+
 /** Fill buffer with stats */ /*@null@*/
 void slabs_stats(ADD_STAT add_stats, void *c);
 
 /* Hints as to freespace in slab class */
 unsigned int slabs_available_chunks(unsigned int id, bool *mem_flag, uint64_t *total_bytes, unsigned int *chunks_perslab);
+
+void slabs_mlock(void);
+void slabs_munlock(void);
 
 int start_slab_maintenance_thread(void);
 void stop_slab_maintenance_thread(void);

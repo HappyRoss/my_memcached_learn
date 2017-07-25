@@ -4,12 +4,14 @@
 #define TEMP_LRU 192
 
 #define CLEAR_LRU(id) (id & ~(3<<6))
+#define GET_LRU(id) (id & (3<<6))
 
 /* See items.c */
 uint64_t get_cas_id(void);
 
 /*@null@*/
 item *do_item_alloc(char *key, const size_t nkey, const unsigned int flags, const rel_time_t exptime, const int nbytes);
+item_chunk *do_item_alloc_chunk(item_chunk *ch, const size_t bytes_remain);
 void item_free(item *it);
 bool item_size_ok(const size_t nkey, const int flags, const int nbytes);
 
@@ -43,6 +45,14 @@ void item_stats_sizes_disable(ADD_STAT add_stats, void *c);
 void item_stats_sizes_add(item *it);
 void item_stats_sizes_remove(item *it);
 bool item_stats_sizes_status(void);
+
+/* stats getter for slab automover */
+typedef struct {
+    int64_t evicted;
+    int64_t outofmemory;
+    uint32_t age;
+} item_stats_automove;
+void fill_item_stats_automove(item_stats_automove *am);
 
 item *do_item_get(const char *key, const size_t nkey, const uint32_t hv, conn *c, const bool do_update);
 item *do_item_touch(const char *key, const size_t nkey, uint32_t exptime, const uint32_t hv, conn *c);
